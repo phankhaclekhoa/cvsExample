@@ -19,6 +19,7 @@ public abstract class AbstractProcessor<T> {
     @Setter
     protected FilesDataParser<T> fileParser;
     protected Optional<Iterator<T>> dataIteratorOption;
+  
     protected FilesRecord filesRecord;
 
     @Setter
@@ -26,7 +27,7 @@ public abstract class AbstractProcessor<T> {
 
 
     protected Boolean init(FilesRecord record, MappingStrategy<T> mappingStrategy) {
-        // Read file from S3
+    	// Read file from S3
         try {
             this.filesRecord = record;
             // Init file parser if null
@@ -47,7 +48,7 @@ public abstract class AbstractProcessor<T> {
     }
 
     protected HeaderColumnNameMappingStrategy getMappingStrategy(Class recordFileClass) {
-        HeaderColumnNameTranslateMappingStrategy strategy = new HeaderColumnNameTranslateMappingStrategy<>();
+    	HeaderColumnNameTranslateMappingStrategy strategy = new HeaderColumnNameTranslateMappingStrategy<>();
         strategy.setType(recordFileClass);
         strategy.setColumnMapping(getColumnMappings());
         return strategy;
@@ -106,4 +107,5 @@ public abstract class AbstractProcessor<T> {
 	protected Iterator<T> getDataIterator() {
         return dataIteratorOption.get();
     }
+
 }

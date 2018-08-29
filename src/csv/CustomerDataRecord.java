@@ -14,7 +14,7 @@ public class CustomerDataRecord {
 	private String companyName;
 	private String customerNumber;
 	private String notes;
-	private int salutation;
+	private Integer salutation;
 	private String street;
 	private String postcode;
 	private String city;

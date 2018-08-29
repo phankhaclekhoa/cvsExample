@@ -14,27 +14,22 @@ public class FileUploadProcessor {
 			ClassNotFoundException {
 		System.out.println("Processing file type: "
 				+ filesRecord.getFileDataType());
-		AbstractProcessor fileProcessor = getFileProcessorByFileType(filesRecord
-				.getFileDataType());
-		try {
-			if (fileProcessor != null) {
-				fileProcessor.process(filesRecord);
-			} else {
-				System.out.println("No known processor for file type: "
-						+ filesRecord.getFileDataType());
-			}
-		} catch (Exception e) {
-			e.printStackTrace();
+		AbstractProcessor fileProcessor = getFileProcessorByFileType(filesRecord);
+		if (fileProcessor != null) {
+			fileProcessor.process(filesRecord);
+		} else {
+			System.out.println("No known processor for file type: "
+					+ filesRecord.getFileDataType());
 		}
 	}
 
 	@SuppressWarnings("rawtypes")
 	public static AbstractProcessor getFileProcessorByFileType(
-			FileDataType fileType) throws IOException, ClassNotFoundException {
+			FilesRecord filesRecord) throws IOException, ClassNotFoundException {
 		AbstractProcessor fileProcessor;
-		switch (fileType) {
+		switch (filesRecord.getFileDataType()) {
 		case CUSTOMER:
-			fileProcessor = new CustomerProcessor();
+			fileProcessor = new CustomerProcessor(0);
 			break;
 		default:
 			fileProcessor = null;

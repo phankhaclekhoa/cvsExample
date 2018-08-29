@@ -3,6 +3,7 @@ package csv;
 import csv.FileProcessorUtil.CsvFields;
 
 import com.google.common.collect.Lists;
+import com.opencsv.CSVReader;
 import com.opencsv.bean.MappingStrategy;
 
 import org.apache.logging.log4j.LogManager;
@@ -17,6 +18,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import lombok.Getter;
+import lombok.Setter;
+
 public class CustomerProcessor extends AbstractProcessor<CustomerDataRecord> {
 
 	private static final Logger LOG = LogManager
@@ -24,21 +28,35 @@ public class CustomerProcessor extends AbstractProcessor<CustomerDataRecord> {
 	private ConcurrentHashMap<String, Integer> customerDataRecordId = new ConcurrentHashMap();
 	private List<CustomerDataRecord> genericDataRecords = Collections
 			.synchronizedList(Lists.newArrayList());
+	@Setter
+	@Getter
+	private Integer customerType;
+
+	public CustomerProcessor(Integer customerType) {
+		this.customerType = customerType;
+	}
 
 	@Override
 	protected Map<String, String> getColumnMappings() {
+		System.out.println(customerType);
 		Map<String, String> columnMap = new HashMap<>();
-		columnMap.put(CsvFields.FIRST_NAME,
-				FileProcessorUtil.OtherFields.FIRST_NAME);
-		columnMap.put(CsvFields.LAST_NAME,
-				FileProcessorUtil.OtherFields.LAST_NAME);
+		if (customerType.compareTo(Integer.valueOf(0)) == 0) {
+			columnMap.put(CsvFields.FIRST_NAME,
+					FileProcessorUtil.OtherFields.FIRST_NAME);
+			columnMap.put(CsvFields.LAST_NAME,
+					FileProcessorUtil.OtherFields.LAST_NAME);
+			columnMap.put(CsvFields.CUSTOMER_NUMBER,
+					FileProcessorUtil.OtherFields.CUSTOMER_NUMBER);
+		} else {
+			columnMap.put(CsvFields.COMPANY_NAME,
+					FileProcessorUtil.OtherFields.COMPANY_NAME);
+		}
 		columnMap.put(CsvFields.SALUTATION,
 				FileProcessorUtil.OtherFields.SALUTATION);
 		columnMap.put(CsvFields.EMAIL, FileProcessorUtil.OtherFields.EMAIL);
 		columnMap.put(CsvFields.PRIMARY_PHONE,
 				FileProcessorUtil.OtherFields.PRIMARY_PHONE);
-		columnMap.put(CsvFields.CUSTOMER_NUMBER,
-				FileProcessorUtil.OtherFields.CUSTOMER_NUMBER);
+
 		columnMap.put(CsvFields.NOTES, FileProcessorUtil.DtoFields.NOTES);
 		columnMap.put(CsvFields.ADDRESS_STREET,
 				FileProcessorUtil.DtoFields.ADDRESS_STREET);
@@ -80,22 +98,36 @@ public class CustomerProcessor extends AbstractProcessor<CustomerDataRecord> {
 		// Start processing
 		UserFileDataMetrics metrics = new UserFileDataMetrics();
 		Iterator<CustomerDataRecord> dataIterator = getDataIterator();
-		System.out.println(dataIterator);
-//		while(dataIterator.hasNext()) {
-//			System.out.println(dataIterator);
-//			CustomerDataRecord iter = dataIterator.next();
-//			System.out.println(iter.toString());
-//		}
 		AtomicInteger rowCount = new AtomicInteger(0);
+		String privateCustomerHeader = "first_name,last_name,salutation,email,primary_phone,customer_number,notes,address_street,address_postcode,address_city,address_country_code";
 		toStream(dataIterator, false)
-				.map(record -> CustomerDataHelper.buildGenericDataRecord(record,
-						filesRecord, rowCount.incrementAndGet()))
+				.map(record -> CustomerDataHelper.buildGenericDataRecord(
+						record, filesRecord, rowCount.incrementAndGet()))
 				.parallel()
 				.forEach(nr -> {
 					metrics.addToTotalRecords(1);
 					// Add parse errors
 						Set<String> parseErrors = fileParser.getParseErrors(nr
 								.getRowNum());
+						StringBuilder redundantColumn = new StringBuilder();
+						try {
+							CSVReader csvReader = fileParser.getCsvReader();
+							Iterator<String[]> iter = csvReader.iterator();
+							while (iter.hasNext()) {
+								String[] nextLines = iter.next();
+								for (String string : nextLines) {
+									if (!privateCustomerHeader.contains(string)) {
+										redundantColumn.append(string).append(
+												",");
+									}
+								}
+							}
+						} catch (Exception e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
+	
+						System.out.println("redundantColumn==="+redundantColumn);
 						for (String error : parseErrors) {
 							metrics.addInvalidValueErrorMessage(
 									"InvalidValueValidation", nr.getRecord()
@@ -109,12 +141,12 @@ public class CustomerProcessor extends AbstractProcessor<CustomerDataRecord> {
 					});
 		// for remaining records (< batch size = 2000)
 		// GenericDataHelper.addOrUpdateGenericDataRecords(genericDataRecords);
-		LOG.info("Processing result for file " + filesRecord.getId() + ": \n"
-				+ metrics.toLogOutput());
+		System.out.println("Processing result for file " + filesRecord.getId()
+				+ ": \n" + metrics.toLogOutput());
 		try {
 			// runGenericAggregationJob(aggregator, filesRecord.getId());
 		} catch (Exception e) {
-			LOG.error("Error aggregating generic data records", e);
+			System.out.println("Error aggregating generic data records" + e);
 			System.exit(-1);
 		}
 
@@ -122,7 +154,7 @@ public class CustomerProcessor extends AbstractProcessor<CustomerDataRecord> {
 		try {
 			String uploadSummary = new ObjectMapper()
 					.writeValueAsString(metrics.createUserFileDataReport());
-			LOG.info("Upload Summary: " + uploadSummary);
+			System.out.println("Upload Summary: " + uploadSummary);
 			filesRecord.setUploadSummary(uploadSummary);
 			// if (!fileDataHelper.updateFilesRecord(filesRecord)) {
 			// LOG.error("Failed to update upload summary for file record with fileID: "
@@ -130,7 +162,7 @@ public class CustomerProcessor extends AbstractProcessor<CustomerDataRecord> {
 			// closeFileParserAndExit();
 			// }
 			long endTime = System.nanoTime();
-			LOG.info("Finished all processing for file: "
+			System.out.println("Finished all processing for file: "
 					+ filesRecord.getId()
 					+ " in "
 					+ TimeUnit.SECONDS.convert(endTime - startTime,
@@ -170,8 +202,8 @@ public class CustomerProcessor extends AbstractProcessor<CustomerDataRecord> {
 			UserFileDataMetrics metrics) {
 		Boolean requiredFieldsValidation = new CustomerRequiredFieldsValidation(
 				record, metrics).validationSuccessful();
-		Boolean specialValidation = new CustomerDataRowsValidation(record, metrics)
-				.validationSuccessful();
+		Boolean specialValidation = new CustomerDataRowsValidation(record,
+				metrics).validationSuccessful();
 
 		return specialValidation && requiredFieldsValidation;
 	}

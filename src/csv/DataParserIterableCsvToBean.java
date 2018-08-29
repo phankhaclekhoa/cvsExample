@@ -105,6 +105,7 @@ public class DataParserIterableCsvToBean extends IterableCSVToBean {
             editor.setAsText(value);
             obj = editor.getValue();
         }
+       
         return obj;
     }
 
@@ -112,6 +113,10 @@ public class DataParserIterableCsvToBean extends IterableCSVToBean {
     public Object nextLine() throws IllegalAccessException, InstantiationException, IOException, IntrospectionException, InvocationTargetException, CsvRequiredFieldEmptyException {
         lineNumber.incrementAndGet();
         return super.nextLine();
+    }
+    
+    public CSVReader getCsvReader() {
+    	return this.getCSVReader();
     }
 
     private static class ParseErrors {
@@ -123,6 +128,7 @@ public class DataParserIterableCsvToBean extends IterableCSVToBean {
 
         public ParseErrors add(String propName) {
             parseErrorPropNames.add(propName);
+            
             return this;
         }
     }

@@ -4,15 +4,21 @@ import com.opencsv.CSVReader;
 import com.opencsv.CSVReaderBuilder;
 import com.opencsv.bean.MappingStrategy;
 import com.opencsv.enums.CSVReaderNullFieldIndicator;
+import com.opencsv.exceptions.CsvRequiredFieldEmptyException;
+
+import lombok.Getter;
 import lombok.Setter;
+
 import org.apache.commons.io.input.BOMInputStream;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.beans.IntrospectionException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
+import java.lang.reflect.InvocationTargetException;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Optional;
@@ -27,6 +33,9 @@ public class FilesDataParser<T> {
 
 	private InputStream inStream;
 	private DataParserIterableCsvToBean csvToBean;
+	@Setter
+	@Getter
+	private CSVReader csvReader;
 
 	public FilesDataParser(MappingStrategy<T> strategy) {
 		this.strategy = strategy;
@@ -47,8 +56,13 @@ public class FilesDataParser<T> {
 			inStream = fileDataHelper.retrieveFileInputStream(fileRecord,
 					s3AccessKey, s3SecretKey, s3Bucket, s3Folder, cacheFolder,
 					retries);
-			System.out.println("inStream="+inStream);
-			return Optional.of(createCSVIterator(inStream));
+			Iterator<T> data = createCSVIterator(inStream);
+			Reader reader = createNewReader(inStream);
+			CSVReaderBuilder csvBuilder = new CSVReaderBuilder(reader);
+			csvReader = csvBuilder.withFieldAsNull(
+					CSVReaderNullFieldIndicator.BOTH).build();
+			
+			return Optional.of(data);
 		} catch (Exception e) {
 
 			// return handleInputStreamError(fileRecord, e,
@@ -74,6 +88,22 @@ public class FilesDataParser<T> {
 		CSVReaderBuilder csvBuilder = new CSVReaderBuilder(reader);
 		CSVReader csvReader = csvBuilder.withFieldAsNull(
 				CSVReaderNullFieldIndicator.BOTH).build();
+		// Iterator<String[]> iter = csvReader.iterator();
+		// while(iter.hasNext()) {
+		// String[] nextLines = iter.next();
+		// for (String string : nextLines) {
+		// if(!privateCustomerHeader.contains(string)) {
+		// redundantColumn.append(string).append(",");
+		// }
+		// }
+		// }
+		this.csvReader = csvReader;
+		try {
+			//getRedundantColumn(this.csvReader);
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} 
 		DataParserCsvToBeanFilter filter = new DataParserCsvToBeanFilter();
 		csvToBean = new DataParserIterableCsvToBean(csvReader, strategy, filter);
 		return csvToBean.iterator();
@@ -88,13 +118,37 @@ public class FilesDataParser<T> {
 	// }
 
 	public synchronized Set<String> getParseErrors(int rowNumber) {
-        if (csvToBean != null) {
-            Set<String> results = csvToBean.getParseErrors(rowNumber);
-            return results;
-        } else {
-            return new HashSet<>();
-        }
-    }
+		if (csvToBean != null) {
+			Set<String> results = csvToBean.getParseErrors(rowNumber);
+			return results;
+		} else {
+			return new HashSet<>();
+		}
+	}
+
+	String privateCustomerHeader = "first_name,last_name,salutation,email,primary_phone,customer_number,notes,address_street,address_postcode,address_city,address_country_code";
+	@Setter
+	@Getter
+	StringBuilder redundantColumn = new StringBuilder();
+
+	public StringBuilder getRedundantColumn()
+			throws IllegalAccessException, InstantiationException,
+			InvocationTargetException, CsvRequiredFieldEmptyException,
+			IOException, IntrospectionException {
+
+		if (csvToBean != null) {
+			Iterator<String[]> iter = csvToBean.getCsvReader().iterator();
+			while (iter.hasNext()) {
+				String[] nextLines = iter.next();
+				for (String string : nextLines) {
+					if (!privateCustomerHeader.contains(string)) {
+						redundantColumn.append(string).append(",");
+					}
+				}
+			}
+		}
+		return redundantColumn;
+	}
 
 	public void close() {
 		if (inStream != null) {

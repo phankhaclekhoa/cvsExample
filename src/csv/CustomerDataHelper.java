@@ -39,7 +39,7 @@ public class CustomerDataHelper extends UserFileDataHelper {
 		String uniqueId = b.toString();
 
 		gdr.setId(rowCount.toString() + ID_SEPARATOR + uniqueId);
-		System.out.println(gdr.getId());
+		System.out.println("Unique Id========="+gdr.getId());
 		return new NumberedDataRecord<CustomerDataRecord>(rowCount, gdr);
 	}
 

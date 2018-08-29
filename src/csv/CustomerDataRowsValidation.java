@@ -28,16 +28,16 @@ public class CustomerDataRowsValidation implements ValidationRule {
 					record.getId()).getRowNumber();
 			metrics.addInvalidValueErrorMessage(
 					this.getClass().getSimpleName(), record.getId(), rowCount,
-					"salutation");
+					"Skipped: Unknown salutation code provided.");
 			result = false;
 		}
 		if (StringUtils.isNotEmpty(record.getCountry())
-				&& CountryCode.getByCode(record.getCountry()) != null) {
+				&& CountryCode.getByCode(record.getCountry()) == null) {
 			int rowCount = CustomerDataHelper.getRecordRowNumberAndId(
 					record.getId()).getRowNumber();
 			metrics.addInvalidValueErrorMessage(
 					this.getClass().getSimpleName(), record.getId(), rowCount,
-					"address_country_code");
+					"Skipped: Unknown country code provided");
 			result = false;
 		}
 		return result;
